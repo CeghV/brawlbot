@@ -1,0 +1,2 @@
+make:
+	g++ -o brawl_bot main.cpp -lgdi32 -lopencv_core490 -lopencv_highgui490 -lopencv_imgproc490 -lopencv_imgcodecs490 -lopencv_dnn490 -IC:\opencv\build\include -LC:\opencv\build\install\x64\mingw\lib -LC:\opencv\build\install\x64\mingw\bin
