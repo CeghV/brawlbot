@@ -11,6 +11,7 @@
 #pragma comment(lib,"glew32.lib")
 HHOOK hHook=NULL;
 const std::string classes[4]={"ally","enemy","player","progscreen"};
+bool pressed[4]={false,false,false,false};
 void pressrelease(WORD key) {
     INPUT input={0};
     input.type=INPUT_KEYBOARD;
@@ -80,9 +81,78 @@ int getindex(std::vector<int32_t> vector,int32_t searchfor)   {
     }
     return index;
 }
+void moveto(cv::Point2d center,cv::Point2d player,cv::Mat mat)  {
+    bool reals[4];
+    if(center.x<player.x)   {
+        cv::line(mat,player,player-cv::Point2d(10,0),cv::Scalar(255,255,0),3);
+        releasekey(0x44);
+        presskey(0x41);
+        reals[3]=false;
+        reals[1]=true;
+        pressed[3]=false;
+        pressed[1]=true;
+    }
+    if(center.x>player.x)   {
+        cv::line(mat,player,player+cv::Point2d(10,0),cv::Scalar(255,255,0),3);
+        releasekey(0x41);
+        presskey(0x44);
+        reals[1]=false;
+        reals[3]=true;
+        pressed[1]=false;
+        pressed[3]=true;
+    }
+    if(center.y<player.y)   {
+        cv::line(mat,player,player-cv::Point2d(0,10),cv::Scalar(255,255,0),3);
+        releasekey(0x53);
+        presskey(0x57);
+        reals[2]=false;
+        reals[0]=true;
+        pressed[2]=false;
+        pressed[0]=true;
+    }
+    if(center.y>player.y)   {
+        cv::line(mat,player,player+cv::Point2d(0,10),cv::Scalar(255,255,0),3);
+        releasekey(0x57);
+        presskey(0x53);
+        reals[0]=false;
+        reals[2]=true;
+        pressed[0]=false;
+        pressed[2]=true;
+    }
+    for(int ji=0;ji<4;ji++)    {
+        bool j=reals[ji];
+        bool k=pressed[ji];
+        if(!j&&k)   {
+            switch(ji)  {
+                case 0:
+                    releasekey(0x57);
+                break;
+                case 1:
+                    releasekey(0x41);
+                break;
+                case 2:
+                    releasekey(0x53);
+                break;
+                case 3:
+                    releasekey(0x44);
+                break;
+            }
+            pressed[ji]=false;
+        }
+    }
+}
+std::vector<int> getindexvec(std::vector<int32_t> vector,int32_t searchfor)   {
+    std::vector<int> indexes;
+    for(int i=0;i<vector.size();i++) {
+        if(vector.at(i)==searchfor)  {
+            indexes.push_back(i);
+        }
+    }
+    return indexes;
+}
 int roundtonum(double toround)   {
-    int rounder=(toround/7);
-    return floor(rounder*7);
+    int rounder=(toround/10);
+    return floor(rounder*10);
 }
 LRESULT CALLBACK quitcallback(int nCode,WPARAM wParam,LPARAM lParam)    {
     if(nCode==HC_ACTION)    {
@@ -135,7 +205,7 @@ int main()  {
                 double conf;
                 cv::Point maxLoc;
                 cv::minMaxLoc(scores,0,&conf,0,&maxLoc);
-                if(conf<0.6f)  {
+                if(conf<0.75f)  {
                     continue;
                 }
                 float* det=preds.ptr<float>(i);
@@ -154,8 +224,13 @@ int main()  {
         int enemy=std::count(groups.begin(),groups.end(),1);
         int ally=std::count(groups.begin(),groups.end(),0);
         if(progscreen>0&&(ally==0&&enemy==0&&player==0))    {
-            // pressrelease(0x46);
-            // std::cout<<"would click"<<"\n";
+            releasekey(0x57);
+            releasekey(0x41);
+            releasekey(0x53);
+            releasekey(0x44);
+            for(int i=0;i<5;i++)    {
+                pressrelease(0x46);
+            }
         }   else{
             if(player>0)    {
                 if(ally>0)  {
@@ -167,68 +242,38 @@ int main()  {
                     center.y=roundtonum(center.y);
                     player.x=roundtonum(player.x);
                     player.y=roundtonum(player.y);
-                    if(center.x<player.x)   {
-                        cv::line(mat,player,player-cv::Point2d(10,0),cv::Scalar(255,255,0),3);
-                        releasekey(0x44);
-                        presskey(0x41);
-                    }
-                    if(center.x>player.x)   {
-                        cv::line(mat,player,player+cv::Point2d(10,0),cv::Scalar(255,255,0),3);
-                        releasekey(0x41);
-                        presskey(0x44);
-                    }
-                    if(center.y<player.y)   {
-                        cv::line(mat,player,player-cv::Point2d(0,10),cv::Scalar(255,255,0),3);
-                        releasekey(0x53);
-                        presskey(0x57);
-                    }
-                    if(center.y>player.y)   {
-                        cv::line(mat,player,player+cv::Point2d(0,10),cv::Scalar(255,255,0),3);
-                        releasekey(0x57);
-                        presskey(0x53);
-                    }
+                    moveto(center,player,mat);
                 }   else    {
                     if(enemy>0) {
                         int cindex=getindex(groups,1);
                         cv::Point2d center=centers.at(cindex);
                         int pindex=getindex(groups,2);
                         cv::Point2d player=centers.at(pindex);
+                        double dist=sqrt(pow((center.x-player.x),2)+pow((center.y-player.y),2));
+                        if(dist<250)    {
+                            cv::line(mat,player,center,cv::Scalar(0,255,255));
+                            pressrelease(0xA0);
+                        }
                         center.x=roundtonum(center.x);
                         center.y=roundtonum(center.y);
                         player.x=roundtonum(player.x);
                         player.y=roundtonum(player.y);
-                        if(center.x<player.x)   {
-                            cv::line(mat,player,player-cv::Point2d(10,0),cv::Scalar(255,255,0),3);
-                            releasekey(0x44);
-                            presskey(0x41);
-                        }
-                        if(center.x>player.x)   {
-                            cv::line(mat,player,player+cv::Point2d(10,0),cv::Scalar(255,255,0),3);
-                            releasekey(0x41);
-                            presskey(0x44);
-                        }
-                        if(center.y<player.y)   {
-                            cv::line(mat,player,player-cv::Point2d(0,10),cv::Scalar(255,255,0),3);
-                            releasekey(0x53);
-                            presskey(0x57);
-                        }
-                        if(center.y>player.y)   {
-                            cv::line(mat,player,player+cv::Point2d(0,10),cv::Scalar(255,255,0),3);
-                            releasekey(0x57);
-                            presskey(0x53);
-                        }
+                        moveto(center,player,mat);
                     }
                 }
                 if(enemy>0) {
-                    int cindex=getindex(groups,1);
-                    cv::Point2d center=centers.at(cindex);
                     int pindex=getindex(groups,2);
                     cv::Point2d player=centers.at(pindex);
-                    double dist=sqrt(pow((center.x-player.x),2)+pow((center.y-player.y),2));
-                    cv::line(mat,player,center,cv::Scalar(0,0,255));
-                    if(dist<70) {
-                        cv::line(mat,player,center,cv::Scalar(255,0,0));
-                        pressrelease(0x20);
+                    for(int inx:getindexvec(groups,1))  {
+                        int cindex=inx;
+                        cv::Point2d center=centers.at(cindex);
+                        double dist=sqrt(pow((center.x-player.x),2)+pow((center.y-player.y),2));
+                        cv::line(mat,player,center,cv::Scalar(0,0,255));
+                        if(dist<70) {
+                            cv::line(mat,player,center,cv::Scalar(255,0,0));
+                            pressrelease(0x20);
+                            break;
+                        }
                     }
                 }
             }
