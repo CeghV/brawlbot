@@ -259,6 +259,8 @@ int main()  {
                         player.x=roundtonum(player.x);
                         player.y=roundtonum(player.y);
                         moveto(center,player,mat);
+                    }   else    {
+                        pressrelease(0x57);
                     }
                 }
                 if(enemy>0) {
