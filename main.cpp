@@ -12,6 +12,8 @@
 HHOOK hHook=NULL;
 const std::string classes[4]={"ally","enemy","player","progscreen"};
 bool pressed[4]={false,false,false,false};
+int afkanim=0;
+int afkreload=0;
 void pressrelease(WORD key) {
     INPUT input={0};
     input.type=INPUT_KEYBOARD;
@@ -169,11 +171,11 @@ LRESULT CALLBACK quitcallback(int nCode,WPARAM wParam,LPARAM lParam)    {
 }
 int main()  {
     SetProcessDPIAware();
-    // hHook=SetWindowsHookEx(WH_KEYBOARD_LL,quitcallback,NULL,0);
-    // if(hHook==NULL) {
-    //     std::cout<<"failed to install quit key hook"<<"\n";
-    //     return -1;
-    // }
+    hHook=SetWindowsHookEx(WH_KEYBOARD_LL,quitcallback,NULL,0);
+    if(hHook==NULL) {
+        std::cout<<"failed to install quit key hook"<<"\n";
+        return -1;
+    }
     HWND hwnd=FindWindow(NULL,"BlueStacks App Player 1");
     if(hwnd)    {
         SetForegroundWindow(hwnd);
@@ -188,6 +190,11 @@ int main()  {
     cv::dnn::Net net=cv::dnn::readNetFromONNX("best.onnx");
     net.enableWinograd(false);
     while(true) {
+        afkreload+=1;
+        if(afkreload==15000)    {
+            pressrelease(0x52);
+            afkreload=0;
+        }
         cv::Mat mat=getwindow(hwnd);
         cv::cvtColor(mat,mat,cv::COLOR_BGRA2BGR);
         cv::resize(mat,mat,cv::Size(416,416));
@@ -205,7 +212,7 @@ int main()  {
                 double conf;
                 cv::Point maxLoc;
                 cv::minMaxLoc(scores,0,&conf,0,&maxLoc);
-                if(conf<0.75f)  {
+                if(conf<0.25f)  {
                     continue;
                 }
                 float* det=preds.ptr<float>(i);
@@ -250,7 +257,7 @@ int main()  {
                         int pindex=getindex(groups,2);
                         cv::Point2d player=centers.at(pindex);
                         double dist=sqrt(pow((center.x-player.x),2)+pow((center.y-player.y),2));
-                        if(dist<250)    {
+                        if(dist<100)    {
                             cv::line(mat,player,center,cv::Scalar(0,255,255));
                             pressrelease(0xA0);
                         }
@@ -258,9 +265,28 @@ int main()  {
                         center.y=roundtonum(center.y);
                         player.x=roundtonum(player.x);
                         player.y=roundtonum(player.y);
-                        moveto(center,player,mat);
+                        if(dist<70)    {
+                            moveto(center,player,mat);
+                        }   else    {
+                            cv::line(mat,player,center,cv::Scalar(255,0,255));
+                            moveto(player,center,mat);
+                        }
                     }   else    {
-                        pressrelease(0x57);
+                        switch(afkanim) {
+                            case 0:
+                                releasekey(0x53);
+                                presskey(0x57);
+                            break;
+                            case 1:
+                                releasekey(0x57);
+                                presskey(0x53);
+                            break;
+                        }
+                        if(afkanim!=1)  {
+                            afkanim+=1;
+                        }   else    {
+                            afkanim=0;
+                        }
                     }
                 }
                 if(enemy>0) {
@@ -285,7 +311,7 @@ int main()  {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
-        Sleep(20);
+        Sleep(10);
     }
     std::cout<<"program quitting..."<<"\n";
     quitall();
